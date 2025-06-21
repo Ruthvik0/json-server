@@ -17,6 +17,15 @@ public class DB {
         return entities;
     }
 
+    public List<String> getAllEntityNames(){
+        return new ArrayList<>(entities.keySet());
+    }
+
+    public void addEntity(String entityName){
+        entities.put(entityName,new ArrayList<>());
+        saveDataToDB();
+    }
+
     private void loadDataFromDB() {
         String dbRawData = DBUtils.readFromDBFile();
         try {
