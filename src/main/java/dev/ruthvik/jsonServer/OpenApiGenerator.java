@@ -26,6 +26,7 @@ class OpenApiGenerator {
         ObjectNode paths = spec.putObject("paths");
 
         addNewEntityDoc(paths);
+        addUploadDoc(paths);
 
         entities.forEach(entity -> {
             String tag = entity.substring(0, 1).toUpperCase() + entity.substring(1);
@@ -115,7 +116,7 @@ class OpenApiGenerator {
         schema.put("type", "string");
     }
 
-    private static void addNewEntityDoc(ObjectNode paths){
+    private static void addNewEntityDoc(ObjectNode paths) {
         ObjectNode createEntityPath = paths.putObject("/entities");
 
         ObjectNode createEntityPost = createEntityPath.putObject("post");
@@ -155,6 +156,66 @@ class OpenApiGenerator {
         ObjectNode resp400Schema = resp400AppJson.putObject("schema");
         resp400Schema.put("type", "object");
         resp400Schema.putObject("properties").putObject("error").put("type", "string").put("example", "Entity already exists");
+    }
+
+    private static void addUploadDoc(ObjectNode paths) {
+        ObjectNode uploadPath = paths.putObject("/upload");
+
+        ObjectNode uploadPost = uploadPath.putObject("post");
+        uploadPost.put("summary", "Upload an image");
+        uploadPost.put("description", "Uploads an image file. File name must be unique.");
+        uploadPost.putArray("tags").add("File");
+
+        ObjectNode requestBody = uploadPost.putObject("requestBody");
+        requestBody.put("required", true);
+        requestBody.put("description", "Image file to upload");
+        ObjectNode content = requestBody.putObject("content");
+        ObjectNode multipart = content.putObject("multipart/form-data");
+        ObjectNode schema = multipart.putObject("schema");
+        schema.put("type", "object");
+        ObjectNode properties = schema.putObject("properties");
+        properties.putObject("image")
+                .put("type", "string")
+                .put("format", "binary")
+                .put("description", "The image file to upload");
+
+        ObjectNode responses = uploadPost.putObject("responses");
+
+        // 200 OK
+        ObjectNode resp200 = responses.putObject("200");
+        resp200.put("description", "Image uploaded successfully");
+        ObjectNode content200 = resp200.putObject("content");
+        ObjectNode appJson200 = content200.putObject("application/json");
+        ObjectNode schema200 = appJson200.putObject("schema");
+        schema200.put("type", "object");
+        schema200.putObject("properties")
+                .putObject("url")
+                .put("type", "string")
+                .put("example", "/public/uploads/image.jpg");
+
+        // 400 Bad Request
+        ObjectNode resp400 = responses.putObject("400");
+        resp400.put("description", "Missing file or invalid input");
+        ObjectNode content400 = resp400.putObject("content");
+        ObjectNode appJson400 = content400.putObject("application/json");
+        ObjectNode schema400 = appJson400.putObject("schema");
+        schema400.put("type", "object");
+        schema400.putObject("properties")
+                .putObject("error")
+                .put("type", "string")
+                .put("example", "No image provided");
+
+        // 409 Conflict
+        ObjectNode resp409 = responses.putObject("409");
+        resp409.put("description", "File already exists");
+        ObjectNode content409 = resp409.putObject("content");
+        ObjectNode appJson409 = content409.putObject("application/json");
+        ObjectNode schema409 = appJson409.putObject("schema");
+        schema409.put("type", "object");
+        schema409.putObject("properties")
+                .putObject("error")
+                .put("type", "string")
+                .put("example", "File already exists: my-image.png");
     }
 
     enum ResponseType {

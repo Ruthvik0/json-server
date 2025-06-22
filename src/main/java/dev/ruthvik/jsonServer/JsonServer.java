@@ -12,21 +12,42 @@ import java.util.Map;
 
 public class JsonServer {
     private static final Logger logger = LoggerFactory.getLogger(JsonServer.class);
+
+    // Constants
+    private static final long DEFAULT_MAX_REQUEST_SIZE = 5 * 1024 * 1024;       // 5 MB
+    private static final long INTERNAL_MAX_THRESHOLD_SIZE = 50 * 1024 * 1024;   // 50 MB
+
     private final int port;
     private final DB db;
     private final Javalin app;
 
     public JsonServer(int port) {
+        this(port, DEFAULT_MAX_REQUEST_SIZE);
+    }
+
+    public JsonServer(int port, long maxRequestSize) {
         this.port = port;
+
+        if (maxRequestSize > INTERNAL_MAX_THRESHOLD_SIZE) {
+            logger.warn("maxRequestSize {} exceeds allowed limit {}. Reverting to default {}.",
+                    maxRequestSize, INTERNAL_MAX_THRESHOLD_SIZE, DEFAULT_MAX_REQUEST_SIZE);
+            maxRequestSize = DEFAULT_MAX_REQUEST_SIZE;
+        }
+
         DBUtils.ensureDBFile();
         db = new DB();
-        app = Javalin.create(javalinConfig ->
-                javalinConfig.staticFiles.add(staticFileConfig -> {
-                    staticFileConfig.hostedPath = "/";
-                    staticFileConfig.directory = "./public/";
-                    staticFileConfig.location = Location.EXTERNAL;
-                }
-        ));
+
+        long finalMaxRequestSize = maxRequestSize;
+        app = Javalin.create(config -> {
+            config.staticFiles.add(staticFileConfig -> {
+                staticFileConfig.hostedPath = "/";
+                staticFileConfig.directory = "./public/";
+                staticFileConfig.location = Location.EXTERNAL;
+            });
+            config.http.maxRequestSize = finalMaxRequestSize;
+        });
+
+        logger.info("Max request size set to {} bytes ({} MB)", maxRequestSize, maxRequestSize / (1024 * 1024));
         OpenApiGenerator.generateOpenApiDoc(db.getAllEntityNames(), "./public/swagger/swagger.yml");
     }
 
@@ -53,7 +74,9 @@ public class JsonServer {
             }
         });
 
-        db.getAllEntityNames().forEach((entityName) -> {
+        app.post("/upload", new FileUploadHandler());
+
+        db.getAllEntityNames().forEach(entityName -> {
             app.get("/" + entityName, new GetAllEntitiesHandler(entityName, db));
             app.get("/" + entityName + "/{id}", new GetEntityHandler(entityName, db));
             app.post("/" + entityName, new PostEntityHandler(entityName, db));
