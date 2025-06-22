@@ -20,13 +20,13 @@ public class JsonServer {
         this.port = port;
         DBUtils.ensureDBFile();
         db = new DB();
-        app = Javalin.create(javalinConfig -> {
-            javalinConfig.staticFiles.add(staticFileConfig -> {
-                staticFileConfig.hostedPath = "/";
-                staticFileConfig.directory = "./public/";
-                staticFileConfig.location = Location.EXTERNAL;
-            });
-        });
+        app = Javalin.create(javalinConfig ->
+                javalinConfig.staticFiles.add(staticFileConfig -> {
+                    staticFileConfig.hostedPath = "/";
+                    staticFileConfig.directory = "./public/";
+                    staticFileConfig.location = Location.EXTERNAL;
+                }
+        ));
         OpenApiGenerator.generateOpenApiDoc(db.getAllEntityNames(), "./public/swagger/swagger.yml");
     }
 
