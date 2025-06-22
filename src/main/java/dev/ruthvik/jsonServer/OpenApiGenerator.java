@@ -25,7 +25,7 @@ class OpenApiGenerator {
 
         ObjectNode paths = spec.putObject("paths");
 
-        addNewEntityDoc(paths);
+        entitiesDoc(paths);
         addUploadDoc(paths);
 
         entities.forEach(entity -> {
@@ -116,9 +116,31 @@ class OpenApiGenerator {
         schema.put("type", "string");
     }
 
-    private static void addNewEntityDoc(ObjectNode paths) {
+    private static void entitiesDoc(ObjectNode paths) {
         ObjectNode createEntityPath = paths.putObject("/entities");
 
+        //Get All Entities
+        ObjectNode get = createEntityPath.putObject("get");
+        get.put("summary", "List all dynamic entity names");
+        get.put("description", "Returns a list of all entity names that have been created.");
+        get.putArray("tags").add("Meta");
+
+        ObjectNode getAllResponse = get.putObject("responses");
+
+        ObjectNode getAllResp200 = getAllResponse.putObject("200");
+        getAllResp200.put("description", "List of entity names");
+        ObjectNode getAllContent = getAllResp200.putObject("content");
+        ObjectNode getAllAppJson = getAllContent.putObject("application/json");
+        ObjectNode getAllSchema = getAllAppJson.putObject("schema");
+        getAllSchema.put("type", "object");
+        ObjectNode getAllProperties = getAllSchema.putObject("properties");
+
+        ObjectNode getAllEntities = getAllProperties.putObject("entities");
+        getAllEntities.put("type", "array");
+        getAllEntities.set("items", mapper.createObjectNode().put("type", "string"));
+        getAllEntities.set("example", mapper.createArrayNode().add("books").add("authors"));
+
+        //Add Entity
         ObjectNode createEntityPost = createEntityPath.putObject("post");
         createEntityPost.put("summary", "Create a new dynamic entity");
         createEntityPost.put("description", "Creates a new entity name (table) that can be used to store data.");
@@ -169,10 +191,12 @@ class OpenApiGenerator {
         ObjectNode requestBody = uploadPost.putObject("requestBody");
         requestBody.put("required", true);
         requestBody.put("description", "Image file to upload");
+
         ObjectNode content = requestBody.putObject("content");
         ObjectNode multipart = content.putObject("multipart/form-data");
         ObjectNode schema = multipart.putObject("schema");
         schema.put("type", "object");
+
         ObjectNode properties = schema.putObject("properties");
         properties.putObject("image")
                 .put("type", "string")
@@ -188,14 +212,12 @@ class OpenApiGenerator {
         ObjectNode appJson200 = content200.putObject("application/json");
         ObjectNode schema200 = appJson200.putObject("schema");
         schema200.put("type", "object");
-        schema200.putObject("properties")
-                .putObject("url")
-                .put("type", "string")
-                .put("example", "/public/uploads/image.jpg");
+        ObjectNode props200 = schema200.putObject("properties");
+        props200.putObject("url").put("type", "string").put("example", "/uploads/my-image.jpg");
 
         // 400 Bad Request
         ObjectNode resp400 = responses.putObject("400");
-        resp400.put("description", "Missing file or invalid input");
+        resp400.put("description", "Missing file, invalid file name, or unsupported file type");
         ObjectNode content400 = resp400.putObject("content");
         ObjectNode appJson400 = content400.putObject("application/json");
         ObjectNode schema400 = appJson400.putObject("schema");
@@ -203,7 +225,7 @@ class OpenApiGenerator {
         schema400.putObject("properties")
                 .putObject("error")
                 .put("type", "string")
-                .put("example", "No image provided");
+                .put("example", "Only image uploads are allowed");
 
         // 409 Conflict
         ObjectNode resp409 = responses.putObject("409");
@@ -215,7 +237,19 @@ class OpenApiGenerator {
         schema409.putObject("properties")
                 .putObject("error")
                 .put("type", "string")
-                .put("example", "File already exists: my-image.png");
+                .put("example", "File already exists: image.png");
+
+        // 413 Payload Too Large
+        ObjectNode resp413 = responses.putObject("413");
+        resp413.put("description", "File too large");
+        ObjectNode content413 = resp413.putObject("content");
+        ObjectNode appJson413 = content413.putObject("application/json");
+        ObjectNode schema413 = appJson413.putObject("schema");
+        schema413.put("type", "object");
+        schema413.putObject("properties")
+                .putObject("error")
+                .put("type", "string")
+                .put("example", "File too large");
     }
 
     enum ResponseType {

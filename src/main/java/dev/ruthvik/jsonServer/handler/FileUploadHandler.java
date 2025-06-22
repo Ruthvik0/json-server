@@ -8,19 +8,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
 public class FileUploadHandler implements Handler {
 
     private final Logger logger = LoggerFactory.getLogger(FileUploadHandler.class);
+    private final long MAX_UPLOAD_SIZE;
+    private final Path uploadDir;
+
+    public FileUploadHandler(long maxUploadSize, Path uploadDir) {
+        this.MAX_UPLOAD_SIZE = maxUploadSize;
+        this.uploadDir = uploadDir;
+    }
 
     @Override
     public void handle(@NotNull Context context) {
-        String errorResponse = "{\"error\":\"%s\"}";
+        final String errorResponse = "{\"error\":\"%s\"}";
 
         UploadedFile uploadedFile = context.uploadedFile("image");
         if (uploadedFile == null) {
@@ -34,13 +41,33 @@ public class FileUploadHandler implements Handler {
             return;
         }
 
-        // ✅ Light sanitization
-        String cleanFileName = originalName.trim()
-                .replaceAll("[\\\\/]", "")      // remove slashes
-                .replaceAll("\\p{Cntrl}", "") // remove control characters
-                .replaceAll("\\s+", "_");       // replace spaces with underscores (optional)
+        // Check MIME type
+        String contentType = uploadedFile.contentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            context.status(400).json(String.format(errorResponse, "Only image uploads are allowed"));
+            return;
+        }
 
-        Path uploadDir = Paths.get("./public/uploads");
+        // Check file size
+        if (uploadedFile.size() > MAX_UPLOAD_SIZE) {
+            context.status(413).json(String.format(errorResponse, "File too large"));
+            return;
+        }
+
+        // ✅ Sanitize filename
+        String cleanFileName = originalName.trim()
+                .replaceAll("[\\\\/]", "")
+                .replaceAll("\\p{Cntrl}", "")
+                .replaceAll("\\s+", "_");
+
+        // Block dangerous extensions
+        if (cleanFileName.endsWith(".yml") || cleanFileName.endsWith(".yaml")
+                || cleanFileName.endsWith(".js") || cleanFileName.endsWith(".html")) {
+            context.status(400).json(String.format(errorResponse, "Unsupported file type"));
+            return;
+        }
+
+        // Ensure upload directory exists
         try {
             Files.createDirectories(uploadDir);
         } catch (IOException e) {
@@ -51,7 +78,7 @@ public class FileUploadHandler implements Handler {
 
         Path targetPath = uploadDir.resolve(cleanFileName);
 
-        // Conflict check
+        // Check for conflict
         if (Files.exists(targetPath)) {
             logger.warn("Upload conflict: file '{}' already exists", cleanFileName);
             context.status(409).json(String.format(errorResponse, "File already exists: " + cleanFileName));
@@ -59,13 +86,14 @@ public class FileUploadHandler implements Handler {
         }
 
         // Save file
-        try {
-            Files.copy(uploadedFile.content(), targetPath);
+        try (InputStream in = uploadedFile.content()) {
+            Files.copy(in, targetPath);
         } catch (IOException e) {
             logger.error("Failed to save file '{}': {}", cleanFileName, e.getMessage());
             context.status(500).json(String.format(errorResponse, "Failed to store uploaded file"));
             return;
         }
+
         logger.info("Uploaded file: {}, size: {} bytes", cleanFileName, uploadedFile.size());
 
         Map<String, String> response = new HashMap<>();
