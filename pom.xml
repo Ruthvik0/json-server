@@ -27,6 +27,10 @@
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version> </dependency>
+        <dependency>
             <groupId>io.javalin</groupId>
             <artifactId>javalin</artifactId>
             <version>6.6.0</version>
@@ -37,5 +41,4 @@
             <version>2.0.16</version>
         </dependency>
     </dependencies>
-
 </project>

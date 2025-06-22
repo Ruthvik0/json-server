@@ -2,14 +2,17 @@ package dev.ruthvik.jsonServer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class DB {
+    private static final Logger logger = LoggerFactory.getLogger(DB.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static Map<String, List<Map<String, Object>>> entities = new HashMap<>();
 
-    public DB() {
+    DB() {
         loadDataFromDB();
     }
 
@@ -22,16 +25,18 @@ public class DB {
     }
 
     public void addEntity(String entityName){
-        entities.put(entityName,new ArrayList<>());
+        entities.put(entityName, new ArrayList<>());
         saveDataToDB();
+        logger.info("Entity '{}' added to database", entityName);
     }
 
     private void loadDataFromDB() {
         String dbRawData = DBUtils.readFromDBFile();
         try {
             entities = objectMapper.readValue(dbRawData, new TypeReference<Map<String, List<Map<String, Object>>>>() {});
+            logger.info("Loaded entities from DB file");
         } catch (Exception e) {
-            System.err.println("Could not parse values from json: " + e.getMessage());
+            logger.warn("Could not parse values from DB JSON: {}", e.getMessage());
             entities = new HashMap<>();
         }
     }
@@ -57,6 +62,7 @@ public class DB {
         item.put("id", nextId);
         list.add(item);
         saveDataToDB();
+        logger.info("Added item with ID {} to entity '{}'", nextId, name);
     }
 
     public boolean updateEntityItem(String name, int id, Map<String, Object> newItem) {
@@ -66,9 +72,11 @@ public class DB {
                 newItem.put("id", id);
                 list.set(i, newItem);
                 saveDataToDB();
+                logger.info("Updated item with ID {} in entity '{}'", id, name);
                 return true;
             }
         }
+        logger.warn("Item with ID {} not found while updating '{}'", id, name);
         return false;
     }
 
@@ -76,7 +84,12 @@ public class DB {
         List<Map<String, Object>> list = getEntity(name);
         boolean removed = list.removeIf(item ->
                 item.get("id") instanceof Number && ((Number) item.get("id")).intValue() == id);
-        if (removed) saveDataToDB();
+        if (removed) {
+            saveDataToDB();
+            logger.info("Deleted item with ID {} from entity '{}'", id, name);
+        } else {
+            logger.warn("Item with ID {} not found while deleting '{}'", id, name);
+        }
         return removed;
     }
 
@@ -84,8 +97,9 @@ public class DB {
         try {
             String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(entities);
             DBUtils.writeToDBFile(json);
+            logger.debug("Saved DB state to file");
         } catch (Exception e) {
-            System.err.println("Could not write to DB file: " + e.getMessage());
+            logger.error("Could not write to DB file: {}", e.getMessage());
         }
     }
 }

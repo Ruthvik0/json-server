@@ -1,30 +1,40 @@
 package dev.ruthvik.jsonServer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.ruthvik.jsonServer.handler.*;
 import io.javalin.Javalin;
 import io.javalin.http.HttpStatus;
+import io.javalin.http.staticfiles.Location;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class JsonServer {
+    private static final Logger logger = LoggerFactory.getLogger(JsonServer.class);
     private final int port;
     private final DB db;
-    private final ObjectMapper mapper = new ObjectMapper();
     private final Javalin app;
 
     public JsonServer(int port) {
         this.port = port;
         DBUtils.ensureDBFile();
         db = new DB();
-        app = Javalin.create();
+        app = Javalin.create(javalinConfig -> {
+            javalinConfig.staticFiles.add(staticFileConfig -> {
+                staticFileConfig.hostedPath = "/";
+                staticFileConfig.directory = "./public/";
+                staticFileConfig.location = Location.EXTERNAL;
+            });
+        });
+        OpenApiGenerator.generateOpenApiDoc(db.getAllEntityNames(), "./public/swagger/swagger.yml");
     }
 
     private static final String errorResponse = "{\"error\":\"%s\"}";
 
     public void run() {
 
+        // Endpoint to create new entities
         app.post("/entities", ctx -> {
             Map<String, Object> body = ctx.bodyAsClass(Map.class);
             String entityName = (String) body.get("entityName");
@@ -37,31 +47,22 @@ public class JsonServer {
 
                 Map<String, String> response = new HashMap<>();
                 response.put("message", "Entity added successfully");
-                response.put("devTip", "🚨 Restart the server to activate routes for this entity");
+                response.put("devTip", "🚨 Restart the server to activate routes for this entity AND update OpenAPI docs");
                 ctx.status(HttpStatus.CREATED).json(response);
+                logger.info("Added new entity '{}'", entityName);
             }
         });
 
         db.getAllEntityNames().forEach((entityName) -> {
-
-            // GET /entity
             app.get("/" + entityName, new GetAllEntitiesHandler(entityName, db));
-
-            // GET /entity/{id}
             app.get("/" + entityName + "/{id}", new GetEntityHandler(entityName, db));
-
-            // POST /entity
             app.post("/" + entityName, new PostEntityHandler(entityName, db));
-
-            // PUT /entity/{id}
             app.put("/" + entityName + "/{id}", new PutEntityHandler(entityName, db));
-
-            // DELETE /entity/{id}
             app.delete("/" + entityName + "/{id}", new DeleteEntityHandler(entityName, db));
-
         });
 
-        System.out.printf("Json Server is running on http://localhost:%s%n", port);
+        logger.info("Json Server is running on http://localhost:{}", port);
+        logger.info("Swagger UI: http://localhost:{}/swagger", port);
         app.start(port);
     }
 }
