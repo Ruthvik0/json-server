@@ -7,7 +7,6 @@ import io.javalin.http.staticfiles.Location;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,19 +14,20 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 
+/**
+ * The main entry point for starting the JSON Server.
+ * Supports dynamic CRUD entities, file upload, and OpenAPI docs.
+ */
 public class JsonServer {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonServer.class);
 
-    // Limits
     private static final long DEFAULT_MAX_REQUEST_SIZE = 5 * 1024 * 1024;       // 5 MB
     private static final long INTERNAL_MAX_THRESHOLD_SIZE = 50 * 1024 * 1024;   // 50 MB
 
-    // Defaults
     private static final Path DEFAULT_UPLOAD_DIR = Paths.get(System.getProperty("user.dir"), "uploads");
     private static final Path SWAGGER_DIR_PATH = Paths.get(System.getProperty("user.dir"), "src/main/resources/swagger", "swagger.yml");
 
-    // Final Config
     private final long FINAL_MAX_SIZE;
     private final String FINAL_UPLOAD_DIR;
 
@@ -35,8 +35,19 @@ public class JsonServer {
     private final DB db;
     private final Javalin app;
 
-    // === Constructors ===
-
+    /**
+     * Entry point for building and configuring the JsonServer.
+     * Example:
+     * <pre>{@code
+     * JsonServer server = JsonServer.builder()
+     *     .port(8080)
+     *     .maxRequestSize(10 * 1024 * 1024)
+     *     .uploadDir(Paths.get("/custom/uploads"))
+     *     .build();
+     *
+     * server.run();
+     * }</pre>
+     */
     public static JsonServerBuilder builder() {
         return new JsonServerBuilder();
     }
@@ -57,14 +68,12 @@ public class JsonServer {
         db = new DB();
 
         this.app = Javalin.create(config -> {
-            // Serve Swagger UI (classpath)
             config.staticFiles.add(staticFileConfig -> {
                 staticFileConfig.hostedPath = "/swagger";
                 staticFileConfig.directory = "/swagger";
                 staticFileConfig.location = Location.CLASSPATH;
             });
 
-            // Serve uploaded files (external)
             config.staticFiles.add(staticFileConfig -> {
                 staticFileConfig.hostedPath = "/uploads";
                 staticFileConfig.directory = FINAL_UPLOAD_DIR;
@@ -85,8 +94,10 @@ public class JsonServer {
         }
     }
 
-    // === Main server startup ===
-
+    /**
+     * Starts the JSON server on the configured port.
+     * This will also initialize the dynamic endpoints and Swagger UI.
+     */
     public void run() {
         app.post("/entities", new CreateNewEntity(db));
 
@@ -113,28 +124,54 @@ public class JsonServer {
         app.start(port);
     }
 
-    // === Builder ===
-
+    /**
+     * Builder class for creating a customized instance of {@link JsonServer}.
+     */
     public static class JsonServerBuilder {
         private int port = 7070;
         private long maxRequestSize = DEFAULT_MAX_REQUEST_SIZE;
         private Path uploadDir = DEFAULT_UPLOAD_DIR;
 
+        /**
+         * Sets the port number on which the server will run.
+         *
+         * @param port the port number
+         * @return builder instance
+         */
         public JsonServerBuilder port(int port) {
             this.port = port;
             return this;
         }
 
+        /**
+         * Sets the maximum request size (in bytes).
+         * Requests exceeding this size will be rejected.
+         *
+         * @param bytes the maximum request size in bytes
+         * @return builder instance
+         */
         public JsonServerBuilder maxRequestSize(long bytes) {
             this.maxRequestSize = bytes;
             return this;
         }
 
+        /**
+         * Sets the directory path to store uploaded image files.
+         * This must be an external folder.
+         *
+         * @param dir path to the upload folder
+         * @return builder instance
+         */
         public JsonServerBuilder uploadDir(Path dir) {
             this.uploadDir = dir;
             return this;
         }
 
+        /**
+         * Builds the JsonServer instance using the specified settings.
+         *
+         * @return configured JsonServer instance
+         */
         public JsonServer build() {
             return new JsonServer(port, maxRequestSize, uploadDir);
         }
