@@ -26,7 +26,6 @@ public class JsonServer {
     private static final long INTERNAL_MAX_THRESHOLD_SIZE = 50 * 1024 * 1024;   // 50 MB
 
     private static final Path DEFAULT_UPLOAD_DIR = Paths.get(System.getProperty("user.dir"), "uploads");
-    private static final Path SWAGGER_DIR_PATH = Paths.get(System.getProperty("user.dir"), "src/main/resources/swagger", "swagger.yml");
     private static final Path GENERATED_SWAGGER_PATH = Paths.get(System.getProperty("user.dir"), "swagger-output", "swagger.yml");
 
     private final long FINAL_MAX_SIZE;
