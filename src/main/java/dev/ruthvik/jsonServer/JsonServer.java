@@ -27,6 +27,7 @@ public class JsonServer {
 
     private static final Path DEFAULT_UPLOAD_DIR = Paths.get(System.getProperty("user.dir"), "uploads");
     private static final Path SWAGGER_DIR_PATH = Paths.get(System.getProperty("user.dir"), "src/main/resources/swagger", "swagger.yml");
+    private static final Path GENERATED_SWAGGER_PATH = Paths.get(System.getProperty("user.dir"), "swagger-output", "swagger.yml");
 
     private final long FINAL_MAX_SIZE;
     private final String FINAL_UPLOAD_DIR;
@@ -68,10 +69,17 @@ public class JsonServer {
         db = new DB();
 
         this.app = Javalin.create(config -> {
-            config.staticFiles.add(staticFileConfig -> {
+
+            config.staticFiles.add(staticFileConfig ->{
                 staticFileConfig.hostedPath = "/swagger";
                 staticFileConfig.directory = "/swagger";
                 staticFileConfig.location = Location.CLASSPATH;
+            });
+
+            config.staticFiles.add(staticFileConfig -> {
+                staticFileConfig.hostedPath = "/swagger/swaggerConfig";
+                staticFileConfig.directory = GENERATED_SWAGGER_PATH.toString();
+                staticFileConfig.location = Location.EXTERNAL;
             });
 
             config.staticFiles.add(staticFileConfig -> {
@@ -84,8 +92,14 @@ public class JsonServer {
             config.showJavalinBanner = false;
         });
 
+        try {
+            Files.createDirectories(GENERATED_SWAGGER_PATH.getParent());
+        } catch (IOException e) {
+            logger.error("Could not create swagger ouput directory: {}", FINAL_UPLOAD_DIR, e);
+        }
+
         logger.info("Max request size set to {} bytes ({} MB)", maxRequestSize, maxRequestSize / (1024 * 1024));
-        OpenApiGenerator.generateOpenApiDoc(db.getAllEntityNames(), SWAGGER_DIR_PATH.toString());
+        OpenApiGenerator.generateOpenApiDoc(db.getAllEntityNames(), GENERATED_SWAGGER_PATH.toString());
 
         try {
             Files.createDirectories(Paths.get(FINAL_UPLOAD_DIR));
