@@ -8,6 +8,12 @@ A lightweight, annotation-free JSON API server built using **Javalin**, with sup
 - 🧪 Clean, minimal API surface ideal for prototyping, mocking, or microservice bootstrapping
 
 ---
+> ⚠️ **Deprecated Version Notice**
+>
+> Version `1.0.0` of this library is deprecated due to partial functionality and should not be used.
+>
+> 👉 Please upgrade to **version `1.0.1` or later** for a working, stable release.
+---
 
 ## 🚀 Features
 
@@ -32,7 +38,7 @@ You can use this project as a **Maven dependency** once published:
 <dependency>
     <groupId>dev.ruthvik</groupId>
     <artifactId>json-server</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
@@ -49,7 +55,7 @@ JsonServer server = JsonServer.builder()
     .uploadDir(Paths.get("my/uploads")) // Optional
     .build();
 
-server.run();
+    server.run();
 ```
 
 ---
