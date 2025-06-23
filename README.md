@@ -36,7 +36,7 @@ You can use this project as a **Maven dependency** once published:
 
 ```xml
 <dependency>
-    <groupId>dev.ruthvik</groupId>
+    <groupId>io.github.ruthvik0</groupId>
     <artifactId>json-server</artifactId>
     <version>1.0.1</version>
 </dependency>
